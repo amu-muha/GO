@@ -1,0 +1,15 @@
+/database
+./database/
+.env
+.env.*
+!.env.example
+
+# Local secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+elesc
+GoProject
