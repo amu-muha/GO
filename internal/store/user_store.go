@@ -2,15 +2,42 @@ package store
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
-	_"github.com/ydb-platform/ydb-go-sdk/v3/query"
-	_ "golang.org/x/crypto/bcrypt"
+	_ "github.com/ydb-platform/ydb-go-sdk/v3/query"
+	"golang.org/x/crypto/bcrypt"
 )
 type password struct{
 	plain *string
 	hash []byte
 }
+
+func (p *password) Set( plaintextPassword string)error{
+	hash, err:=  bcrypt.GenerateFromPassword([]byte(plaintextPassword), 12)
+	if err != nil {
+		return err
+	}
+	p.plain = &plaintextPassword
+	p.hash = hash
+	
+	return nil
+}
+
+func (p *password) Matches(plaintextPassword string)(bool,error){
+	err:= bcrypt.CompareHashAndPassword(p.hash,[]byte(plaintextPassword))
+
+	if err!= nil{
+		switch{
+		case errors.Is(err,bcrypt.ErrMismatchedHashAndPassword):
+			return false,nil
+		default:
+			return false, err
+		}
+	}
+	return true,nil
+}
+
 type User struct {
 	ID           int       `json:"id"`
 	Username     string    `json:"username"`
@@ -43,7 +70,7 @@ func (s *PostgresUserStore) CreateUser(user *User) error {
 	RETURNING id,created_at,updated_at
 	`
 
-	err := s.db.QueryRow(query,user.Username,user.Email,user.PasswordHash,user.Bio).Scan(&user.ID,&user.CreatedAt,&user.UpdatedAt)
+	err := s.db.QueryRow(query,user.Username,user.Email,user.PasswordHash.hash,user.Bio).Scan(&user.ID,&user.CreatedAt,&user.UpdatedAt)
 if err != nil {
 	return err
 }
